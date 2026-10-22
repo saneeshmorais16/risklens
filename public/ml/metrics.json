@@ -1,0 +1,65 @@
+{
+  "seed": 42,
+  "rows": 10920,
+  "train_rows": 7646,
+  "valid_rows": 1110,
+  "test_rows": 2164,
+  "train_days": "1-21",
+  "valid_days": "22-24",
+  "test_days": "25-30",
+  "positive_rate": 0.011813186813186813,
+  "features": [
+    "log_amount",
+    "hour",
+    "velocity_24h",
+    "distance_km",
+    "new_device",
+    "merchant_risk"
+  ],
+  "baseline_logistic": {
+    "threshold": 0.95,
+    "precision": 0.6744186046511628,
+    "recall": 0.9354838709677419,
+    "f1": 0.7837837837837838,
+    "pr_auc": 0.718297887343212,
+    "confusion": {
+      "tn": 2119,
+      "fp": 14,
+      "fn": 2,
+      "tp": 29
+    },
+    "n": 2164,
+    "positives": 31
+  },
+  "limitation": "Labels are noisy synthetic injections, and some ordinary rows look unusual on purpose. A perfect score on this book would mean the model memorised the generator. These figures do not transfer to real customers.",
+  "risknet": {
+    "threshold": 0.6,
+    "precision": 0.3,
+    "recall": 0.6774193548387096,
+    "f1": 0.4158415841584158,
+    "pr_auc": 0.34820540104344977,
+    "confusion": {
+      "tn": 2084,
+      "fp": 49,
+      "fn": 10,
+      "tp": 21
+    },
+    "n": 2164,
+    "positives": 31
+  },
+  "narrative_transformer": {
+    "threshold": 0.65,
+    "precision": 0.6666666666666666,
+    "recall": 0.7096774193548387,
+    "f1": 0.6875,
+    "pr_auc": 0.702749728248997,
+    "confusion": {
+      "tn": 2122,
+      "fp": 11,
+      "fn": 9,
+      "tp": 22
+    },
+    "n": 2164,
+    "positives": 31
+  }
+}

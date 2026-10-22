@@ -9,8 +9,14 @@ attachments
 *.log
 .env
 .env.*
+!.env.example
 dist
 .output
 AGENTS.md
 AGENTS.project.md
+__pycache__/
+.pytest_cache/
+models/scores.db
+*.pyc
+
 

@@ -469,6 +469,7 @@ export function RiskConsole() {
             copy="Clear, hold, or escalate a saved synthetic item with a reason code. Uploaded files are scored and then discarded."
           />
         </section>
+        <ModelLab />
 
         <section className="rounded-lg border border-line bg-panel p-4 sm:p-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
@@ -962,6 +963,91 @@ export function RiskConsole() {
     </main>
   );
 }
+
+function ModelLab() {
+  const [report, setReport] = useState<LabReport | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/ml/metrics.json")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (!cancelled) setReport(body);
+      })
+      .catch(() => {
+        if (!cancelled) setReport(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return (
+    <section className="rounded-lg border border-line bg-panel p-4 sm:p-5">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <h2 className="font-display text-2xl">Model lab</h2>
+        <p className="text-xs text-mist">Days 25–30 · measured, not assumed</p>
+      </div>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-mist">
+        {report?.limitation ?? "Train the Python baseline to fill this panel. The served score is the logistic model. A high score still only asks for a review."}
+      </p>
+      {report ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <LabCard name="Logistic baseline" detail="Served by the API" metric={report.baseline_logistic} />
+          <LabCard name="RiskNet" detail="PyTorch MLP" metric={report.risknet} />
+          <LabCard name="Narrative encoder" detail="Transformer on the written case" metric={report.narrative_transformer} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function LabCard({
+  name,
+  detail,
+  metric,
+}: {
+  name: string;
+  detail: string;
+  metric?: LabMetric;
+}) {
+  if (!metric) {
+    return (
+      <article className="rounded-lg border border-line bg-ink px-4 py-3">
+        <p className="text-sm text-paper">{name}</p>
+        <p className="mt-1 text-xs text-mist">{detail}</p>
+        <p className="mt-3 text-sm text-mist">Not trained in this run.</p>
+      </article>
+    );
+  }
+  return (
+    <article className="rounded-lg border border-line bg-ink px-4 py-3">
+      <p className="text-sm text-paper">{name}</p>
+      <p className="mt-1 text-xs text-mist">{detail}</p>
+      <p className="mt-3 font-display text-3xl tabular-nums text-paper">{metric.f1.toFixed(2)}</p>
+      <p className="text-xs text-mist">F1 on the holdout</p>
+      <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-mist">
+        <div>Precision <span className="block text-sm text-paper tabular-nums">{(metric.precision * 100).toFixed(1)}%</span></div>
+        <div>Recall <span className="block text-sm text-paper tabular-nums">{(metric.recall * 100).toFixed(1)}%</span></div>
+        <div>PR-AUC <span className="block text-sm text-paper tabular-nums">{metric.pr_auc.toFixed(2)}</span></div>
+        <div>Threshold <span className="block text-sm text-paper tabular-nums">{metric.threshold.toFixed(2)}</span></div>
+      </dl>
+    </article>
+  );
+}
+
+type LabMetric = {
+  threshold: number;
+  precision: number;
+  recall: number;
+  f1: number;
+  pr_auc: number;
+};
+
+type LabReport = {
+  limitation?: string;
+  baseline_logistic?: LabMetric;
+  risknet?: LabMetric;
+  narrative_transformer?: LabMetric;
+};
 
 function ScrollScout() {
   const rider = useRef<HTMLDivElement>(null);

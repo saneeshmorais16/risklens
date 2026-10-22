@@ -1,0 +1,23 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://risklens:risklens@db:5432/risklens
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: risklens
+      POSTGRES_PASSWORD: risklens
+      POSTGRES_DB: risklens
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U risklens -d risklens"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "5432:5432"
