@@ -428,7 +428,7 @@ export function RiskConsole() {
   return (
     <main className="min-h-screen bg-ink text-paper">
       <header className="border-b border-line">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex gap-4">
             <span className="mt-1 hidden w-1 shrink-0 self-stretch bg-brass sm:block" aria-hidden="true" />
             <div>
@@ -450,7 +450,8 @@ export function RiskConsole() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-6">
         <section className="grid gap-3 md:grid-cols-3">
           <ServiceCard
             kicker="01"
@@ -950,8 +951,59 @@ export function RiskConsole() {
             ))}
           </dl>
         </section>
+        </div>
+        <DeskGuide
+          model={selectedModel}
+          transaction={selectedTx}
+          drifted={drift.filter((row) => row.status !== "stable").map((row) => row.feature)}
+        />
       </div>
     </main>
+  );
+}
+
+function DeskGuide({
+  model,
+  transaction,
+  drifted,
+}: {
+  model: ModelSummary | null;
+  transaction: QueueRow | null;
+  drifted: string[];
+}) {
+  const which = [
+    model
+      ? `${model.versionLabel} is the active model, version ${model.id}, threshold ${model.threshold.toFixed(3)}.`
+      : "No model is registered yet. Fit one before a score means anything.",
+    transaction
+      ? `${transaction.transactionId} is the open row, score ${transaction.anomalyScore.toFixed(3)}${transaction.flagged ? ", flagged" : ", not flagged"}${transaction.decision ? `, marked ${transaction.decision}` : ""}.`
+      : "No row is open. Choose one from the queue.",
+  ].join(" ");
+  const when = drifted.length
+    ? `Look again now. ${drifted.join(", ")} moved between the train window and the holdout.`
+    : "Review a row when it is flagged. Come back to drift when a feature leaves stable.";
+  const notes = [
+    ["Why", "Someone has to be allowed to doubt a score. This book is synthetic, so that practice never names a real customer. A high score is a prompt to look, not a finding of fraud."],
+    ["What", "RiskLens fits an Isolation Forest, freezes it, and scores a later window. Flagged rows wait in a queue. Drift, slice gaps, and an audit line show whether the book or the review moved."],
+    ["How", "Days 1–21 grow the trees. Days 22–30 are scored with that frozen forest. A CSV is scored, then discarded. Talk or type a doubt: a short brief appears first, then the voice. You still choose clear, hold, or escalate."],
+    ["Which", which],
+    ["When", when],
+  ] as const;
+  return (
+    <aside className="order-first lg:sticky lg:top-4 lg:order-none lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+      <div className="rounded-lg border border-line bg-panel p-4">
+        <p className="font-mono text-xs tracking-widest text-brass">DESK</p>
+        <h2 className="mt-1 font-display text-2xl">Why this is here</h2>
+        <ul className="mt-4 flex flex-col gap-4">
+          {notes.map(([title, copy]) => (
+            <li key={title}>
+              <p className="text-xs tracking-wide text-brass">{title}</p>
+              <p className="mt-1 text-sm leading-relaxed text-paper">{copy}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </aside>
   );
 }
 
