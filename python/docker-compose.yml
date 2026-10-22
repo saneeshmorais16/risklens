@@ -1,0 +1,15 @@
+services:
+  risklens:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - RISKLENS_PASSWORD=demo
+      - RISKLENS_DB_PATH=/data/risklens.db
+      - RISKLENS_LOG_PATH=/data/risklens.log
+    volumes:
+      - risklens-data:/data
+    restart: unless-stopped
+
+volumes:
+  risklens-data:

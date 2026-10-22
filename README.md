@@ -1,14 +1,26 @@
 # RiskLens
 
-Synthetic transaction review console. An Isolation Forest is fit on the early days of a generated book, frozen, and used to score the holdout. Reviewers can clear, hold, or escalate a flagged row, watch drift and slice gaps, and ask a voice assistant about the open case.
+Synthetic transaction review. An Isolation Forest is fit on generated activity and used to flag rows for a person to review. A high score is a reason to look, not a finding of fraud.
 
-A high score is a reason to look, not a finding of fraud. The book is synthetic.
+## Python service
 
-## Run
+The original console is Streamlit, with SQLite reviews and Docker. It lives in [python](python/).
+
+```bash
+cd python
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+## TypeScript console
+
+The later console (holdout scoring, drift, slice gaps, and the voice assistant) is the TypeScript app at the repository root.
 
 ```bash
 npm install
 npm run dev
 ```
 
-The app listens on port 8080. Voice answers need `XAI_API_KEY` in the environment. Do not commit that key.
+It listens on port 8080. Voice answers need `XAI_API_KEY` in the environment. Do not commit that key.
