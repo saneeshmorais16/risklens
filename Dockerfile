@@ -4,6 +4,7 @@ COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY backend backend
 COPY features features
+COPY mlops mlops
 COPY agents agents
 COPY rag rag
 COPY models models

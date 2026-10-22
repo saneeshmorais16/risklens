@@ -17,7 +17,10 @@ AGENTS.project.md
 __pycache__/
 .pytest_cache/
 models/scores.db
+models/score_events.db
 models/investigations.jsonl
+.venv/
+mlruns/
 *.pyc
 
 

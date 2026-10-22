@@ -39,5 +39,18 @@ PYTHONPATH=. uvicorn backend.risklens_api.main:app --port 8000
 
 `POST /v1/score` returns a probability and whether an analyst should look. It does not freeze an account. PyTorch is installed from the CPU wheel index, not from the default pip index.
 
-`docker compose up --build` is the local API plus PostgreSQL path. PostgreSQL is started by Compose and is not yet read by the API. Kubernetes, Vertex AI, MLflow, and Feast are not part of this build. See [docs/COVERAGE.md](docs/COVERAGE.md).
+`docker compose up --build` starts the API and PostgreSQL. The API writes scores to PostgreSQL when `DATABASE_URL` is set, and to SQLite when it is not. Kubernetes and Vertex AI are not part of this build. See [docs/COVERAGE.md](docs/COVERAGE.md).
+
+## Phase 3 registries and drift
+
+```bash
+pip install -r backend/requirements.txt -r requirements-mlops.txt
+python -m pytest -q
+```
+
+MLflow and Feast run on the local disk. `GET /v1/monitor` compares recent scores with `models/reference_profile.json`. `GET /v1/registry` reads a champion alias only after `MLFLOW_TRACKING_URI` points at a file store, and it reports `deployed: false`. Details are in [docs/PHASE3.md](docs/PHASE3.md).
+
+## Phase 4 traffic split
+
+`GET /v1/route` reads a route file from `ROUTE_PATH`. `POST /v1/route/score` loads the two named versions from the local MLflow store and applies a canary, shadow, or A/B weight. The response keeps `action` as `none`, `cluster` as false, and `deployed` as false. The champion alias stays where it was. Details are in [docs/PHASE4.md](docs/PHASE4.md).
 
