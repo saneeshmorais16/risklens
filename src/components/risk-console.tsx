@@ -958,7 +958,93 @@ export function RiskConsole() {
           drifted={drift.filter((row) => row.status !== "stable").map((row) => row.feature)}
         />
       </div>
+      <ScrollScout />
     </main>
+  );
+}
+
+function ScrollScout() {
+  const rider = useRef<HTMLDivElement>(null);
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("risklens-scout") === "min") setHidden(true);
+  }, []);
+
+  useEffect(() => {
+    if (hidden) return;
+    const el = rider.current;
+    if (!el) return;
+    let frame = 0;
+    const place = () => {
+      frame = 0;
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const progress = Math.min(1, Math.max(0, window.scrollY / max));
+      const travel = Math.max(0, window.innerWidth - 176);
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.style.transform = `translateX(${progress * travel}px) rotate(${reduce ? 0 : progress * 28 - 10}deg)`;
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(place);
+    };
+    place();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [hidden]);
+
+  function hide() {
+    sessionStorage.setItem("risklens-scout", "min");
+    setHidden(true);
+  }
+
+  function show() {
+    sessionStorage.setItem("risklens-scout", "open");
+    setHidden(false);
+  }
+
+  if (hidden) {
+    return (
+      <button
+        type="button"
+        onClick={show}
+        className="fixed bottom-4 left-4 z-30 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-brass bg-panel text-sm text-brass"
+        aria-label="Show the scroll scout"
+      >
+        <ScoutMark />
+      </button>
+    );
+  }
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 h-16">
+      <div ref={rider} className="pointer-events-auto absolute bottom-0 left-3 flex items-center gap-2">
+        <div className="grid h-14 w-14 place-items-center rounded-full border border-brass bg-panel shadow-lg">
+          <ScoutMark />
+        </div>
+        <button
+          type="button"
+          onClick={hide}
+          className="inline-flex min-h-11 items-center rounded-full border border-line bg-ink px-3 text-sm text-mist"
+        >
+          Minimize
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ScoutMark() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+      <circle cx="14" cy="14" r="8" fill="none" stroke="#e0a34a" strokeWidth="1.6" />
+      <circle cx="14" cy="14" r="2" fill="#e0a34a" />
+      <path d="M14 2.5v4.2M14 21.3v4.2M2.5 14h4.2M21.3 14h4.2" stroke="#9aafa4" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
   );
 }
 
