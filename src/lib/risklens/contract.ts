@@ -119,3 +119,25 @@ export const CONTRACT_FIELDS = [
   { name: "distance_km", rule: "Kilometres from the usual place. Logged before scoring." },
   { name: "new_device", rule: "1 if the device is new, otherwise 0." },
 ] as const;
+
+export const investigateInputSchema = z.object({
+  transactionId: z.string().min(1).max(40),
+  customerId: z.string().min(1).max(40),
+  amount: z.number().finite().nonnegative(),
+  hour: z.number().int().min(0).max(23),
+  velocity: z.number().int().nonnegative().max(500),
+  distanceKm: z.number().finite().nonnegative(),
+  newDevice: z.boolean(),
+  score: z.number().finite(),
+  note: z.string().max(240).optional(),
+  history: z
+    .array(
+      z.object({
+        transactionId: z.string().max(40),
+        customerId: z.string().max(40),
+        amount: z.number().finite().nonnegative(),
+        hour: z.number().int().min(0).max(23),
+      }),
+    )
+    .max(8),
+});

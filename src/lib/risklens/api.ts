@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { ZodType } from "zod";
-import { doubtInputSchema, queueInputSchema, reviewInputSchema, scoreInputSchema, trainInputSchema } from "./contract";
+import { doubtInputSchema, investigateInputSchema, queueInputSchema, reviewInputSchema, scoreInputSchema, trainInputSchema } from "./contract";
 
 function read<T>(schema: ZodType<T>, input: unknown): T {
   const result = schema.safeParse(input);
@@ -41,6 +41,13 @@ export const recordReview = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { saveReview } = await import("./repo.server");
     return saveReview(data);
+  });
+
+export const investigateCase = createServerFn({ method: "POST" })
+  .validator((input: unknown) => read(investigateInputSchema, input))
+  .handler(async ({ data }) => {
+    const { investigateCase: run } = await import("./investigate.server");
+    return run(data);
   });
 
 export const speakDoubt = createServerFn({ method: "POST" })

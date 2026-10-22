@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { CONTRACT_FIELDS, CONTRACT_VERSION } from "@/lib/risklens/contract";
 import { featureDrift, sliceGaps } from "@/lib/risklens/monitor";
-import { getQueue, getWorkspace, recordReview, registerModel, scoreBatch, answerDoubt, quickBrief, speakText } from "@/lib/risklens/api";
+import { getQueue, getWorkspace, recordReview, registerModel, scoreBatch, answerDoubt, quickBrief, speakText, investigateCase } from "@/lib/risklens/api";
 
 type Workspace = Awaited<ReturnType<typeof getWorkspace>>;
 type ModelSummary = Workspace["models"][number];
@@ -80,7 +80,7 @@ export function RiskConsole() {
   const [selectedModelId, setSelectedModelId] = useState<number | null>(null);
   const [selectedTxId, setSelectedTxId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<"register" | "score" | "review" | "doubt" | null>(null);
+  const [busy, setBusy] = useState<"register" | "score" | "review" | "doubt" | "investigate" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [n, setN] = useState(800);
@@ -101,6 +101,13 @@ export function RiskConsole() {
   const [heardLive, setHeardLive] = useState("");
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [liveBrief, setLiveBrief] = useState<string | null>(null);
+  const [investigation, setInvestigation] = useState<{
+    id: number;
+    report: string;
+    recommend: boolean;
+    evidence: { source: string; excerpt: string }[];
+    steps: { thought: string; action: string }[];
+  } | null>(null);
   const voiceRef = useRef<HTMLAudioElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -255,6 +262,46 @@ export function RiskConsole() {
       );
       setEvents((current) => [saved.event, ...current].slice(0, 20));
       setNotice("Review stored on this synthetic queue item.");
+    } catch (caught) {
+      setError(messageOf(caught));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function onInvestigate() {
+    if (!selectedTx) return;
+    setBusy("investigate");
+    setError(null);
+    try {
+      const result = await investigateCase({
+        data: {
+          transactionId: selectedTx.transactionId,
+          customerId: selectedTx.customerId,
+          amount: selectedTx.amount,
+          hour: selectedTx.hour,
+          velocity: selectedTx.velocity24h,
+          distanceKm: selectedTx.distanceKm,
+          newDevice: selectedTx.newDevice === 1,
+          score: selectedTx.anomalyScore,
+          history: queue
+            .filter((row) => row.customerId === selectedTx.customerId && row.id !== selectedTx.id)
+            .slice(0, 8)
+            .map((row) => ({
+              transactionId: row.transactionId,
+              customerId: row.customerId,
+              amount: row.amount,
+              hour: row.hour,
+            })),
+        },
+      });
+      setInvestigation({
+        id: selectedTx.id,
+        report: result.report,
+        recommend: result.recommend_review,
+        evidence: result.evidence.map((hit) => ({ source: hit.source, excerpt: hit.excerpt })),
+        steps: result.steps.map((step) => ({ thought: step.thought, action: step.action })),
+      });
     } catch (caught) {
       setError(messageOf(caught));
     } finally {
@@ -742,6 +789,35 @@ export function RiskConsole() {
               <Fact label="New device" value={selectedTx.newDevice ? "Yes" : "No"} />
             </dl>
             <p className="mt-4 text-sm text-paper">{selectedTx.reviewReasons}</p>
+            <button
+              type="button"
+              onClick={() => void onInvestigate()}
+              disabled={busy !== null}
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg border border-brass px-4 text-sm text-paper disabled:opacity-50"
+            >
+              {busy === "investigate" ? "Investigating…" : "Investigate"}
+            </button>
+            {investigation && investigation.id === selectedTx.id ? (
+              <div className="mt-4 rounded-lg border border-line bg-ink px-3 py-3">
+                <p className="text-sm leading-relaxed text-paper">{investigation.report}</p>
+                {investigation.evidence.length > 0 ? (
+                  <ul className="mt-3 flex flex-col gap-2">
+                    {investigation.evidence.map((hit) => (
+                      <li key={hit.source} className="text-xs leading-relaxed text-mist">
+                        <span className="text-brass">{hit.source}</span> · {hit.excerpt}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <ol className="mt-3 flex flex-col gap-1">
+                  {investigation.steps.map((step, index) => (
+                    <li key={`${step.action}-${index}`} className="text-xs text-mist">
+                      {index + 1}. {step.action} — {step.thought}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
             {showInjected ? (
               <p className="mt-2 text-xs text-mist">
                 Synthetic scenario flag: {selectedTx.injectedScenario ? "injected" : "not injected"}. Not used to train the forest.

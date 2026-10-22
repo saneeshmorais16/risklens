@@ -13,9 +13,9 @@
 | Docker | Dockerfile and Compose written | Not executed in this environment |
 | React + TypeScript dashboard | Existing console plus Model lab | `src/components/risk-console.tsx` |
 | Next.js | Not used | The running UI is TanStack Start |
-| Local investigation agent | Implemented and tested | `agents/local_agent.py` |
-| RAG over fictional policies | Keyword overlap, one policy | `rag/policies/review.md` |
-| ReAct with an LLM | Not implemented | Local loop is deterministic tool use, not an LLM |
+| Local investigation agent | Implemented and tested | `agents/react_agent.py` allow-listed tools, audit line |
+| RAG over fictional policies | TF-IDF index, seven notes, tested | `rag/index.py`, `rag/policies/` |
+| ReAct with an LLM | Local four-step loop is tested. An LLM does not choose the tools | `agents/react_agent.py` |
 | MLflow, Feast, KServe, Vertex, Prometheus, Grafana, Kubernetes | Not implemented | No deployment was attempted |
 | GitHub Actions | Workflow file added | Not executed here |
 | CI/CD cloud deploy, canary, shadow, A/B | Not implemented | |

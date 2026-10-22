@@ -84,3 +84,23 @@ def score(body: ScoreIn) -> dict:
         "action": "none",
         "note": "A review flag is not an account action.",
     }
+
+
+class InvestigateIn(BaseModel):
+    transaction_id: str = Field(min_length=1, max_length=40)
+    customer_id: str = Field(min_length=1, max_length=40)
+    amount: float = Field(ge=0, lt=1_000_000)
+    hour: int = Field(ge=0, le=23)
+    velocity_24h: int = Field(ge=0, le=10_000)
+    distance_km: float = Field(ge=0, le=20_000)
+    new_device: int = Field(ge=0, le=1)
+    score: float | None = None
+    note: str | None = Field(default=None, max_length=240)
+
+
+@app.post("/v1/investigate")
+def investigate(body: InvestigateIn) -> dict:
+    from agents.react_agent import run
+
+    return run(body.model_dump())
+

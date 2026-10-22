@@ -4,6 +4,8 @@ COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY backend backend
 COPY features features
+COPY agents agents
+COPY rag rag
 COPY models models
 ENV PYTHONPATH=/app
 EXPOSE 8000

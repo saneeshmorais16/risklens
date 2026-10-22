@@ -17,6 +17,7 @@ AGENTS.project.md
 __pycache__/
 .pytest_cache/
 models/scores.db
+models/investigations.jsonl
 *.pyc
 
 
