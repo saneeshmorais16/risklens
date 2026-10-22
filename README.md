@@ -24,3 +24,5 @@ npm run dev
 ```
 
 It listens on port 8080. Voice answers need `XAI_API_KEY` in the environment. Do not commit that key.
+
+`python/brief_server.py` answers the first line of an open case on port 8091, before the spoken reply. The dev startup script launches it.

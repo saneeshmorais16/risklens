@@ -2,6 +2,9 @@
 set -eu
 cd /workspace
 node scripts/preview.mjs stop || true
+if ! curl -sf -o /dev/null --max-time 1 http://127.0.0.1:8091/health; then
+  python3 /workspace/python/brief_server.py >>/tmp/brief.log 2>&1 &
+fi
 if curl -sf -o /dev/null --max-time 2 http://127.0.0.1:8080/; then
   exit 0
 fi

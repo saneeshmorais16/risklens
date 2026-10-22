@@ -10,21 +10,77 @@ const SYSTEM = [
 
 function spoken(content: unknown) {
   const raw = typeof content === "string" ? content : "";
-  const cleaned = raw
+  return raw
     .replace(/[*_`#]/g, "")
     .replace(/\s+/g, " ")
-    .trim();
-  return cleaned.slice(0, 700);
+    .trim()
+    .slice(0, 700);
+}
+
+export async function answerDoubt(input: unknown): Promise<{ heard: string; text: string }> {
+  return complete(input);
+}
+
+export async function voiceFor(text: string): Promise<string> {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) throw new Error("The voice assistant is not available in this environment.");
+  const line = text.replace(/\s+/g, " ").trim().slice(0, 400);
+  if (!line) throw new Error("Nothing to say.");
+  const speech = await fetch("https://api.x.ai/v1/tts", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      text: line,
+      voice_id: "eve",
+      language: "en",
+      speed: 1.25,
+    }),
+  });
+  if (!speech.ok) throw new Error("The answer is ready, but the voice did not answer. Try again.");
+  return Buffer.from(await speech.arrayBuffer()).toString("base64");
 }
 
 export async function speakDoubt(input: unknown): Promise<{ heard: string; text: string; audioBase64: string }> {
+  const answered = await complete(input);
+  const audioBase64 = await voiceFor(answered.text);
+  return { ...answered, audioBase64 };
+}
+
+export async function quickBrief(input: unknown): Promise<{ text: string }> {
+  const facts = doubtInputSchema.parse(input);
+  try {
+    const response = await fetch("http://127.0.0.1:8091/brief", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(facts),
+      signal: AbortSignal.timeout(400),
+    });
+    if (response.ok) {
+      const body = (await response.json()) as { text?: string };
+      if (body.text) return { text: body.text.slice(0, 280) };
+    }
+  } catch {
+    // The Python brief is optional. The spoken answer still runs.
+  }
+  const item = facts.item;
+  if (!item) return { text: "No case is open. The doubt is in the holdout numbers, not in one row." };
+  return {
+    text: item.flagged
+      ? `${item.transactionId} is flagged at ${item.score.toFixed(2)}.`
+      : `${item.transactionId} is under the threshold at ${item.score.toFixed(2)}.`,
+  };
+}
+
+async function complete(input: unknown): Promise<{ heard: string; text: string }> {
   const facts = doubtInputSchema.parse(input);
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) throw new Error("The voice assistant is not available in this environment.");
 
   const heard = facts.audioBase64 ? await transcribe(apiKey, facts.audioBase64, facts.audioMime) : "";
   const asked = [heard, facts.question ?? ""].filter(Boolean).join(" ").trim();
-
   const lines = [
     facts.item
       ? `Open case ${facts.item.transactionId}. Amount ${facts.item.amount.toFixed(2)} pounds. Hour ${facts.item.hour}. Velocity ${facts.item.velocity}. Distance ${facts.item.distanceKm.toFixed(1)} km. New device ${facts.item.newDevice ? "yes" : "no"}. Score ${facts.item.score.toFixed(3)}. ${facts.item.flagged ? "Flagged" : "Not flagged"}. Notes: ${facts.item.reasons || "none"}. Prior review: ${facts.item.decision ?? "none"}${facts.item.reasonCode ? ` / ${facts.item.reasonCode}` : ""}.`
@@ -40,17 +96,7 @@ export async function speakDoubt(input: unknown): Promise<{ heard: string; text:
     .filter(Boolean)
     .join("\n");
 
-  const prior = (facts.history ?? []).map((turn) => ({
-    role: turn.role,
-    content: turn.text,
-  }));
-  const messages = [
-    { role: "system", content: SYSTEM },
-    { role: "user", content: lines },
-    ...prior,
-    ...(asked ? [{ role: "user" as const, content: asked }] : []),
-  ];
-
+  const prior = (facts.history ?? []).map((turn) => ({ role: turn.role, content: turn.text }));
   const chat = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -61,32 +107,19 @@ export async function speakDoubt(input: unknown): Promise<{ heard: string; text:
       model: "grok-4-1-fast-non-reasoning",
       max_tokens: 70,
       temperature: 0.2,
-      messages,
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: lines },
+        ...prior,
+        ...(asked ? [{ role: "user" as const, content: asked }] : []),
+      ],
     }),
   });
   if (!chat.ok) throw new Error("The assistant could not answer. Try again in a moment.");
-  const chatBody = (await chat.json()) as {
-    choices?: { message?: { content?: unknown } }[];
-  };
+  const chatBody = (await chat.json()) as { choices?: { message?: { content?: unknown } }[] };
   const text = spoken(chatBody.choices?.[0]?.message?.content);
   if (!text) throw new Error("The assistant had nothing to say about this case.");
-
-  const speech = await fetch("https://api.x.ai/v1/tts", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      text,
-      voice_id: "eve",
-      language: "en",
-      speed: 1.2,
-    }),
-  });
-  if (!speech.ok) throw new Error("The answer is ready, but the voice did not answer. Try again.");
-  const audio = Buffer.from(await speech.arrayBuffer()).toString("base64");
-  return { heard, text, audioBase64: audio };
+  return { heard, text };
 }
 
 async function transcribe(apiKey: string, audioBase64: string, audioMime?: string) {

@@ -49,3 +49,29 @@ export const speakDoubt = createServerFn({ method: "POST" })
     const { speakDoubt: run } = await import("./assistant.server");
     return run(data);
   });
+
+export const answerDoubt = createServerFn({ method: "POST" })
+  .validator((input: unknown) => read(doubtInputSchema, input))
+  .handler(async ({ data }) => {
+    const { answerDoubt: run } = await import("./assistant.server");
+    return run(data);
+  });
+
+export const quickBrief = createServerFn({ method: "POST" })
+  .validator((input: unknown) => read(doubtInputSchema, input))
+  .handler(async ({ data }) => {
+    const { quickBrief: run } = await import("./assistant.server");
+    return run(data);
+  });
+
+export const speakText = createServerFn({ method: "POST" })
+  .validator((input: unknown) => {
+    if (!input || typeof input !== "object" || typeof (input as { text?: unknown }).text !== "string") {
+      throw new Error("Nothing to say.");
+    }
+    return { text: (input as { text: string }).text.slice(0, 400) };
+  })
+  .handler(async ({ data }) => {
+    const { voiceFor } = await import("./assistant.server");
+    return { audioBase64: await voiceFor(data.text) };
+  });

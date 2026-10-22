@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { CONTRACT_FIELDS, CONTRACT_VERSION } from "@/lib/risklens/contract";
 import { featureDrift, sliceGaps } from "@/lib/risklens/monitor";
-import { getQueue, getWorkspace, recordReview, registerModel, scoreBatch, speakDoubt } from "@/lib/risklens/api";
+import { getQueue, getWorkspace, recordReview, registerModel, scoreBatch, answerDoubt, quickBrief, speakText } from "@/lib/risklens/api";
 
 type Workspace = Awaited<ReturnType<typeof getWorkspace>>;
 type ModelSummary = Workspace["models"][number];
@@ -100,6 +100,7 @@ export function RiskConsole() {
   const [listening, setListening] = useState(false);
   const [heardLive, setHeardLive] = useState("");
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
+  const [liveBrief, setLiveBrief] = useState<string | null>(null);
   const voiceRef = useRef<HTMLAudioElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -265,54 +266,59 @@ export function RiskConsole() {
     setBusy("doubt");
     setError(null);
     setVoiceNote(null);
+    setLiveBrief(null);
     const asked = (spoken ?? question).trim();
+    const payload = {
+      question: asked || undefined,
+      audioBase64: clip?.audioBase64,
+      audioMime: clip?.audioMime,
+      history: turns.slice(-4),
+      item: selectedTx
+        ? {
+            transactionId: selectedTx.transactionId,
+            amount: selectedTx.amount,
+            hour: selectedTx.hour,
+            velocity: selectedTx.velocity24h,
+            distanceKm: selectedTx.distanceKm,
+            newDevice: selectedTx.newDevice === 1,
+            score: selectedTx.anomalyScore,
+            flagged: selectedTx.flagged,
+            reasons: selectedTx.reviewReasons,
+            decision: selectedTx.decision,
+            reasonCode: selectedTx.reasonCode,
+            injected: showInjected ? selectedTx.injectedScenario : undefined,
+          }
+        : null,
+      model: selectedModel
+        ? {
+            label: selectedModel.versionLabel,
+            auc: selectedModel.rocAuc,
+            precision: selectedModel.precision,
+            recall: selectedModel.recall,
+            threshold: selectedModel.threshold,
+            flagRate: selectedModel.testFlagRate,
+          }
+        : null,
+      drift: drift.map((row) => ({ feature: row.feature, status: row.status, smd: row.smd })),
+      slices: slices.map((row) => ({ name: row.name, n: row.n, gap: row.gap })),
+    };
+    const briefTask = quickBrief({ data: payload })
+      .then((brief) => setLiveBrief(brief.text))
+      .catch(() => undefined);
     try {
-      const result = await speakDoubt({
-        data: {
-          question: asked || undefined,
-          audioBase64: clip?.audioBase64,
-          audioMime: clip?.audioMime,
-          history: turns.slice(-4),
-          item: selectedTx
-            ? {
-                transactionId: selectedTx.transactionId,
-                amount: selectedTx.amount,
-                hour: selectedTx.hour,
-                velocity: selectedTx.velocity24h,
-                distanceKm: selectedTx.distanceKm,
-                newDevice: selectedTx.newDevice === 1,
-                score: selectedTx.anomalyScore,
-                flagged: selectedTx.flagged,
-                reasons: selectedTx.reviewReasons,
-                decision: selectedTx.decision,
-                reasonCode: selectedTx.reasonCode,
-                injected: showInjected ? selectedTx.injectedScenario : undefined,
-              }
-            : null,
-          model: selectedModel
-            ? {
-                label: selectedModel.versionLabel,
-                auc: selectedModel.rocAuc,
-                precision: selectedModel.precision,
-                recall: selectedModel.recall,
-                threshold: selectedModel.threshold,
-                flagRate: selectedModel.testFlagRate,
-              }
-            : null,
-          drift: drift.map((row) => ({ feature: row.feature, status: row.status, smd: row.smd })),
-          slices: slices.map((row) => ({ name: row.name, n: row.n, gap: row.gap })),
-        },
-      });
+      const result = await answerDoubt({ data: payload });
+      await briefTask;
       const userLine = result.heard || asked;
       setTurns((current) =>
         [...current, ...(userLine ? [{ role: "user" as const, text: userLine }] : []), { role: "assistant" as const, text: result.text }].slice(-6),
       );
       setQuestion("");
-      setBriefing({ text: result.text, src: `data:audio/mpeg;base64,${result.audioBase64}` });
+      setBusy(null);
+      const clipAudio = await speakText({ data: { text: result.text } });
+      setBriefing({ text: result.text, src: `data:audio/mpeg;base64,${clipAudio.audioBase64}` });
     } catch (caught) {
       setError(messageOf(caught));
       setVoiceNote(messageOf(caught));
-    } finally {
       setBusy(null);
     }
   }
@@ -788,7 +794,7 @@ export function RiskConsole() {
             </p>
           </div>
           <p className="mt-2 max-w-2xl text-sm text-mist">
-            Tap Talk and speak. It records from the microphone and sends when you pause. It does not decide the review.
+            A Python brief appears at once, then the spoken answer. It does not decide the review.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -819,6 +825,7 @@ export function RiskConsole() {
               className="mt-1 min-h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-paper placeholder:text-mist"
             />
           </label>
+          {liveBrief ? <p className="mt-3 text-sm text-paper">Now · {liveBrief}</p> : null}
           {voiceNote ? <p className="mt-3 text-sm text-brass">{voiceNote}</p> : null}
           {heardLive ? <p className="mt-3 text-sm text-paper">Hearing: {heardLive}</p> : null}
           {turns.length > 0 ? (
