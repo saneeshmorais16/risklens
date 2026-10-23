@@ -1,7 +1,9 @@
 FROM python:3.12-slim
 WORKDIR /app
 COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+COPY requirements-mlops.txt requirements-mlops.txt
+# The image serves the registry and the route as well as /v1/score, so it needs MLflow.
+RUN pip install --no-cache-dir -r backend/requirements.txt -r requirements-mlops.txt
 COPY backend backend
 COPY features features
 COPY mlops mlops

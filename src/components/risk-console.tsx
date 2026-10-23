@@ -74,6 +74,7 @@ function parseCsv(text: string) {
   return { rows, clipped };
 }
 
+// The review console. A flagged row asks a person to look. Marking a row is a human decision.
 export function RiskConsole() {
   const [models, setModels] = useState<ModelSummary[]>([]);
   const [queue, setQueue] = useState<QueueRow[]>([]);
@@ -1040,6 +1041,7 @@ export function RiskConsole() {
   );
 }
 
+// The last training run, shown as measured numbers. These are not targets.
 function ModelLab() {
   const [report, setReport] = useState<LabReport | null>(null);
   useEffect(() => {
@@ -1125,6 +1127,7 @@ type LabReport = {
   narrative_transformer?: LabMetric;
 };
 
+// A small marker that follows the scroll. It does not score a row.
 function ScrollScout() {
   const rider = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState(false);
@@ -1210,6 +1213,7 @@ function ScoutMark() {
   );
 }
 
+// A short brief beside the open case. It repeats the row and the model. It does not decide the case.
 function DeskGuide({
   model,
   transaction,

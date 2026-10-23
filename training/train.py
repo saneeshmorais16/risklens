@@ -30,6 +30,7 @@ MODEL_DIR = ROOT / "models"
 SEED = 42
 
 
+# Days 1-21 train. Days 22-24 choose the threshold. Days 25-30 are the only reported test.
 def split(frame):
     train = frame[frame["day"] <= 21]
     valid = frame[(frame["day"] >= 22) & (frame["day"] <= 24)]
@@ -37,6 +38,7 @@ def split(frame):
     return train, valid, test
 
 
+# Precision, recall, F1, and PR-AUC on the days you pass in. The threshold is an argument, not a search.
 def binary_metrics(y_true: np.ndarray, proba: np.ndarray, threshold: float) -> dict:
     pred = (proba >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_true, pred, labels=[0, 1]).ravel()
@@ -52,6 +54,7 @@ def binary_metrics(y_true: np.ndarray, proba: np.ndarray, threshold: float) -> d
     }
 
 
+# Pick the cutoff on the validation days by F1. The test days are not used for this choice.
 def best_threshold(y_true: np.ndarray, proba: np.ndarray) -> float:
     best_t, best_f = 0.5, -1.0
     for threshold in np.linspace(0.05, 0.95, 19):
@@ -61,6 +64,7 @@ def best_threshold(y_true: np.ndarray, proba: np.ndarray) -> float:
     return best_t
 
 
+# The model /v1/score serves. Fit on days 1-21, choose the cutoff on days 22-24, measure on days 25-30.
 def train_baseline(train, valid, test) -> tuple[Pipeline, dict]:
     pipe = Pipeline(
         [
@@ -79,6 +83,7 @@ def train_baseline(train, valid, test) -> tuple[Pipeline, dict]:
     return pipe, metrics
 
 
+# RiskNet, for comparison. It is saved. It is not promoted over the baseline.
 def train_torch(train, valid, test) -> dict | None:
     try:
         import torch
@@ -134,6 +139,7 @@ def train_torch(train, valid, test) -> dict | None:
     return {"risknet": metrics, "narrative_transformer": text_metrics}
 
 
+# A small encoder over the generated sentence. The sentence comes from the numbers. This model is not served.
 def train_transformer(train, valid, test, torch, nn) -> dict:
     torch.manual_seed(SEED)
 
@@ -195,6 +201,7 @@ def train_transformer(train, valid, test, torch, nn) -> dict:
     return metrics
 
 
+# Fit the baseline, compare the neural models, and write the measured numbers. Those numbers are not targets.
 def main() -> None:
     frame = generate()
     train, valid, test = split(frame)

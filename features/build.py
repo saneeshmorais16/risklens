@@ -15,12 +15,14 @@ FEATURE_COLUMNS = (
 )
 
 
+# log_amount is the only derived column. The label never enters this matrix.
 def add_features(frame: pd.DataFrame) -> pd.DataFrame:
     out = frame.copy()
     out["log_amount"] = np.log1p(out["amount"].astype(float))
     return out
 
 
+# The column order the baseline, RiskNet, and the route all score with.
 def matrix(frame: pd.DataFrame) -> np.ndarray:
     featured = add_features(frame)
     return featured.loc[:, list(FEATURE_COLUMNS)].to_numpy(dtype=np.float32)

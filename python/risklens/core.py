@@ -4,6 +4,7 @@ from sklearn.ensemble import IsolationForest
 
 FEATURES = ['amount', 'hour', 'velocity_24h', 'distance_km', 'new_device']
 
+# The original synthetic book for the Streamlit console. Injected rows are unusual on purpose.
 def generate_transactions(n=1200, seed=42):
     rng = np.random.default_rng(seed)
     customer = rng.integers(1, 151, n)
@@ -21,6 +22,7 @@ def generate_transactions(n=1200, seed=42):
     new_device[ix] = 1
     return pd.DataFrame({'transaction_id': [f'TX-{i:06d}' for i in range(n)], 'customer_id': [f'C-{x:04d}' for x in customer], 'amount': np.round(amount, 2), 'hour': hour, 'velocity_24h': velocity, 'distance_km': np.round(distance, 1), 'new_device': new_device, 'injected_scenario': injected})
 
+# Isolation Forest on that book. A flag asks for a look. It is not a finding of fraud.
 def analyze(df, contamination=.05):
     if not 0 < contamination <= .5:
         raise ValueError('contamination must be between 0 and 0.5')

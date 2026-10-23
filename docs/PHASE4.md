@@ -9,16 +9,16 @@ Phase 3 registers a champion and measures drift. Phase 4 chooses which registere
 - Shadow serves the primary. For keys inside the weight it also scores the candidate. `shadow_served` is false. The shadow score is left out of the score log.
 - The route names two versions in the file at `ROUTE_PATH`. It does not follow the champion alias. A score does not move that alias, and moving the alias leaves the route on the versions it names.
 - `GET /v1/route` reports the file. `POST /v1/route/score` loads those versions from the local MLflow file store. Both payloads keep `action` as `none`, `cluster` as false, `deployed` as false, and `alias_moved` as false.
-- The served score is appended to the same log as `/v1/score`, with `model` set to `baseline_logistic@<version>`. `GET /v1/monitor` still reads that log as one book. It does not compute PSI per version.
+- The served score is appended to the same log as `/v1/score`, with `model` set to `baseline_logistic@<version>`. `GET /v1/monitor` still computes one PSI for that whole log. Phase 5 counts the rows by model.
 - `tests/test_live_postgres.py` is the live PostgreSQL check. When `docker info` succeeds it starts `postgres:16-alpine`, writes through the score log and the API, and removes the container.
 
 ## What was tested
 
-`python -m pytest -q` on Python 3.12: 26 passed, 3 skipped.
+`python -m pytest -q` on Python 3.12, with Docker running: 36 passed. An earlier run of this phase was 26 passed and 3 skipped, because the live PostgreSQL tests had no daemon.
 
 The Phase 4 tests cover a stable split at the requested weight, shadow serving the primary while scoring the candidate, a route that is rejected unless the two versions differ, the route endpoints, a pinned version that stays put when the champion alias moves, and a load of the registered baseline. Served rows keep `action` as `none`. The route payloads keep `cluster` and `deployed` false.
 
-The three skipped tests are `tests/test_live_postgres.py`. Docker is not installed on this machine, so PostgreSQL was not started and Compose was not run.
+`tests/test_live_postgres.py` passed after WSL 2.7.13 was installed and Docker Desktop 4.96.3 started. Compose built the API image, `/health` returned the baseline model, and a scored row was stored with `action` `none`. The stack was stopped after that check.
 
 ## What was not deployed
 

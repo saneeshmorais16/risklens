@@ -15,7 +15,7 @@ from risklens.db import (
     save_analysis,
 )
 
-# Structured logging
+# Structured logging for this page.
 log_path = os.getenv("RISKLENS_LOG_PATH", "risklens.log")
 logging.basicConfig(
     level=logging.INFO,
@@ -27,7 +27,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("risklens")
 
-# Simple Phase-1 auth (replace with OIDC / proper IAM in later phases)
+# A demo login for this Streamlit page. The password comes from the environment. This is not the scoring API.
 DEMO_USERS = {
     "analyst": os.getenv("RISKLENS_PASSWORD", "demo"),  # override via env in prod
 }
@@ -55,6 +55,7 @@ def login_form():
                 st.error("Invalid credentials")
                 logger.warning("Failed login attempt for user %s", username)
 
+# The original console. It flags synthetic rows for a person to review. A flag is not a fraud verdict.
 def main():
     init_db()
     st.set_page_config(page_title="RiskLens | Investigation Console", page_icon="🔎", layout="wide")

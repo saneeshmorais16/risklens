@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 POLICY_DIR = ROOT / "rag" / "policies"
 
 
+# Search the fictional policy notes. A hit is evidence for the report. It is not an instruction to act.
 class PolicyIndex:
     def __init__(self, directory: Path = POLICY_DIR) -> None:
         self.paths = sorted(directory.glob("*.md"))

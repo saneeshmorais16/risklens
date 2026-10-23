@@ -18,8 +18,10 @@ from features.build import FEATURE_COLUMNS, add_features
 ROOT = Path(__file__).resolve().parents[1]
 PSI_ALERT = 0.25
 N_BINS = 10
+MIN_ROWS = 30
 
 
+# The training-window profile, unless REFERENCE_PROFILE_PATH points at another file.
 def reference_path() -> Path:
     override = os.environ.get("REFERENCE_PROFILE_PATH", "").strip()
     if override:
@@ -27,6 +29,7 @@ def reference_path() -> Path:
     return ROOT / "models" / "reference_profile.json"
 
 
+# Cuts from the reference sample. A constant column still gets a bin on each side, so a shift can show up.
 def quantile_edges(values: np.ndarray, n_bins: int = N_BINS) -> np.ndarray:
     sample = np.asarray(values, dtype=float)
     edges = np.unique(np.quantile(sample, np.linspace(0, 1, n_bins + 1)))
@@ -53,6 +56,7 @@ def proportions(values: np.ndarray, edges: np.ndarray) -> np.ndarray:
     return counts / total
 
 
+# How far the current bins sit from the reference bins. 0.25 is the usual warning band, not a business rule.
 def psi(expected: np.ndarray, actual: np.ndarray, eps: float = 1e-6) -> float:
     ref = np.clip(np.asarray(expected, dtype=float), eps, None)
     cur = np.clip(np.asarray(actual, dtype=float), eps, None)
@@ -92,6 +96,7 @@ def profile_frame(frame: pd.DataFrame, scores: np.ndarray | None = None) -> dict
     return report
 
 
+# One PSI per feature and one PSI for the score. A high value asks for a look at the book. action stays none.
 def drift_report(
     reference: dict,
     current: pd.DataFrame,
@@ -122,6 +127,68 @@ def drift_report(
         "action": "none",
         "note": "A drift alert asks for a look at the book. It does not change an account.",
     }
+
+
+# PSI for each served model. A model needs 30 rows of its own before that PSI is ready.
+def version_drift(reference: dict, frame: pd.DataFrame) -> list[dict]:
+    from mlops.score_log import model_labels
+
+    labels = model_labels(frame)
+    if labels is None:
+        return []
+    found = []
+    order = sorted(labels.unique(), key=lambda name: (-int((labels == name).sum()), str(name)))
+    for name in order:
+        group = frame.loc[labels == name]
+        count = int(len(group))
+        if count < MIN_ROWS:
+            found.append(
+                {
+                    "model": str(name),
+                    "n": count,
+                    "ready": False,
+                    "reason": f"fewer than {MIN_ROWS} scored rows",
+                    "action": "none",
+                }
+            )
+            continue
+        report = drift_report(reference, group, scores=group["score"].to_numpy())
+        found.append(
+            {
+                "model": str(name),
+                "n": count,
+                "ready": True,
+                "alerts": report["alerts"],
+                "features": report["features"],
+                "score": report["score"],
+                "action": "none",
+            }
+        )
+    return found
+
+
+# Name the ready models whose PSI alerts when another ready model is quiet.
+# A model under 30 rows is not the quiet comparison. This does not change the route or the champion alias.
+def look_at(by_version: list[dict]) -> dict:
+    ready = [item for item in by_version if item.get("ready")]
+    alerting = [str(item["model"]) for item in ready if item.get("alerts")]
+    quiet = [str(item["model"]) for item in ready if not item.get("alerts")]
+    held = {"alias_moved": False, "route_changed": False, "action": "none"}
+    if alerting and quiet:
+        return {
+            **held,
+            "ready": True,
+            "models": alerting,
+            "quiet": quiet,
+            "note": "Look at the alerting model. The route and the champion alias stay where they are.",
+        }
+    if len(ready) < 2:
+        reason = "fewer than two models have a PSI"
+    elif not alerting:
+        reason = "no ready model is alerting"
+    else:
+        reason = "every ready model is alerting"
+    return {**held, "ready": False, "models": [], "reason": reason}
 
 
 def load_reference(path: Path | None = None) -> dict:

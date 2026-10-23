@@ -30,6 +30,7 @@ NOTE = (
 )
 
 
+# Two different versions and a weight from 0 to 1. The mode is canary, shadow, or ab.
 @dataclass(frozen=True)
 class Route:
     mode: str
@@ -70,6 +71,7 @@ def _candidate_selected(route: Route, key: str) -> bool:
     return bucket(key) < route.candidate_weight
 
 
+# Who scores this key. Shadow keeps the primary as the decision. The candidate score is not served.
 def assignment(route: Route, key: str) -> dict:
     selected = _candidate_selected(route, key)
     if route.mode == "shadow":
@@ -86,6 +88,7 @@ def assignment(route: Route, key: str) -> dict:
     }
 
 
+# Run the picked version. cluster stays false. The champion alias is not moved.
 def score_route(route: Route, key: str, models: dict, row: np.ndarray) -> dict:
     chosen = assignment(route, key)
     served = models[chosen["served_version"]]
@@ -113,6 +116,7 @@ def score_route(route: Route, key: str, models: dict, row: np.ndarray) -> dict:
     }
 
 
+# The route file names the versions. It does not follow the champion alias.
 def read_route(path: Path) -> Route:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -142,6 +146,7 @@ def configured_route() -> Route:
     return read_route(path)
 
 
+# What GET /v1/route returns when the file is readable. action stays none. deployed stays false.
 def describe(route: Route) -> dict:
     return {
         "ready": True,
@@ -157,6 +162,7 @@ def describe(route: Route) -> dict:
     }
 
 
+# The same refusal shape when the route or the registry is missing. Still action none. Still no cluster.
 def not_ready(reason: str) -> dict:
     return {
         "ready": False,
@@ -168,6 +174,7 @@ def not_ready(reason: str) -> dict:
     }
 
 
+# Load one registered version from the local file store. Loading it does not deploy it.
 def load_version(tracking_uri: str, version: str):
     import mlflow
     from mlflow.tracking import MlflowClient

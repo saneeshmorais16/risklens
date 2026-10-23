@@ -14,6 +14,7 @@ MERCHANT_RISK = {
 }
 
 
+# A fictional book. The label is a noisy injection. It is not a finding about a real customer.
 def generate(n_customers: int = 360, days: int = 30, seed: int = 42) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     rows: list[dict] = []
@@ -70,6 +71,7 @@ def generate(n_customers: int = 360, days: int = 30, seed: int = 42) -> pd.DataF
                 txn_id += 1
     frame = pd.DataFrame(rows)
     frame = frame.sort_values(["customer_id", "day", "hour", "transaction_id"]).reset_index(drop=True)
+    # Velocity counts earlier rows only. The row being written is not included yet.
     counts: dict[tuple[str, int], int] = {}
     velocity: list[int] = []
     for row in frame.itertuples(index=False):
@@ -81,12 +83,14 @@ def generate(n_customers: int = 360, days: int = 30, seed: int = 42) -> pd.DataF
     is_burst = frame["scenario"] == "burst"
     frame.loc[is_burst, "label"] = (frame.loc[is_burst, "velocity_24h"] >= 2).astype(int)
     frame.loc[is_burst & (frame["label"] == 0), "scenario"] = "ordinary"
+    # Drop some injected labels on purpose. A perfect score would mean the model memorised the generator.
     positives = frame.index[frame["label"] == 1]
     drop = rng.choice(positives.to_numpy(), size=max(1, int(0.2 * len(positives))), replace=False)
     frame.loc[drop, "label"] = 0
     return frame
 
 
+# A sentence built from the numbers, for the narrative encoder. It is not a customer note.
 def narrative(row: pd.Series) -> str:
     device = "new device" if int(row["new_device"]) == 1 else "known device"
     return (

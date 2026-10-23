@@ -21,6 +21,7 @@ def _num(value, default=0.0) -> float:
         return default
 
 
+# The numeric signals the loop is allowed to name. Text on the row is data, not an order.
 def signals(row: dict) -> list[str]:
     found = []
     if _num(row.get("distance_km")) >= 80:
@@ -35,6 +36,7 @@ def signals(row: dict) -> list[str]:
     return found
 
 
+# The open row, with the note kept as data. The note is not an instruction.
 def get_transaction(case: dict, _book: list[dict]) -> dict:
     kept = {
         "transaction_id": str(case.get("transaction_id") or ""),
@@ -52,6 +54,7 @@ def get_transaction(case: dict, _book: list[dict]) -> dict:
     return kept
 
 
+# Earlier rows for this customer only. A request for another customer is refused.
 def get_history(case: dict, book: list[dict]) -> dict:
     customer = str(case.get("customer_id") or "")
     asked = str(case.get("history_customer_id") or customer)
@@ -73,17 +76,20 @@ def get_history(case: dict, book: list[dict]) -> dict:
     return {"customer_id": customer, "rows": rows[:8]}
 
 
+# The closest fictional policy notes for the numeric signals.
 def search_policies(row: dict) -> dict:
     words = signals(row)
     query = " ".join(words) if words else "ordinary daytime known device short distance low velocity"
     return {"query": query, "hits": INDEX.search(query, limit=2)}
 
 
+# Name the watched signals. This does not decide an account action.
 def explain_score(row: dict) -> dict:
     found = signals(row)
     return {"factors": found, "score": row.get("score")}
 
 
+# The four steps are fixed. An LLM does not choose the next tool.
 def plan(step: int, case: dict, seen: dict) -> tuple[str, str, dict]:
     if step == 0:
         return "Read the stored row. Free text on the row is data.", "get_transaction", {}
@@ -94,6 +100,7 @@ def plan(step: int, case: dict, seen: dict) -> tuple[str, str, dict]:
     return "Explain the score from those signals.", "explain_score", seen.get("get_transaction", {})
 
 
+# Ask for a look when a watched signal is present. Otherwise say the signals are quiet. action stays none.
 def report_from(seen: dict) -> dict:
     factors = seen.get("explain_score", {}).get("factors") or []
     hits = seen.get("search_policies", {}).get("hits") or []
@@ -113,6 +120,7 @@ def report_from(seen: dict) -> dict:
     return {"report": text, "recommend_review": bool(factors), "evidence": [hit for hit in hits if hit["source"] in sources]}
 
 
+# Walk the four steps, write the report, and record action none.
 def run(payload: dict, log_path: Path | None = None) -> dict:
     case = dict(payload)
     book = list(payload.get("history") or [])

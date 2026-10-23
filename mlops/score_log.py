@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS score_events (
 """
 
 
+# SQLite unless DATABASE_URL is a postgres URL. Setting the URL does not create a database.
 def database_url() -> str:
     return os.environ.get("DATABASE_URL", "").strip()
 
@@ -84,6 +85,7 @@ def sqlite_path() -> Path:
     return DEFAULT_SQLITE
 
 
+# One scored row. action is always none, whatever the caller passed in.
 def _payload(row: dict) -> dict:
     return {
         "amount": float(row["amount"]),
@@ -100,6 +102,7 @@ def _payload(row: dict) -> dict:
     }
 
 
+# Write the served row. A shadow score does not come through here.
 def record_score(**row) -> None:
     payload = _payload(row)
     if uses_postgres():
@@ -108,12 +111,41 @@ def record_score(**row) -> None:
     _record_sqlite(payload)
 
 
+# The latest rows, newest first. The monitor reads this window.
 def recent(limit: int = 400) -> pd.DataFrame:
     if uses_postgres():
         return _recent_postgres(limit)
     return _recent_sqlite(limit)
 
 
+# Count served rows by the model name already stored. A blank name counts as the baseline.
+def model_labels(frame: pd.DataFrame) -> pd.Series | None:
+    if frame.empty or "model" not in frame.columns:
+        return None
+    labels = frame["model"].fillna("baseline_logistic").astype(str).str.strip()
+    return labels.where(labels != "", "baseline_logistic")
+
+
+def version_mix(frame: pd.DataFrame) -> list[dict]:
+    """Counts of served rows by the stored model name.
+
+    The caller still computes one PSI for the whole frame.
+    """
+
+    if frame.empty or "model" not in frame.columns:
+        return []
+    labels = model_labels(frame)
+    counts = labels.value_counts()
+    total = int(counts.sum())
+    rows = [
+        {"model": str(name), "n": int(count), "share": float(count) / total}
+        for name, count in counts.items()
+    ]
+    rows.sort(key=lambda item: (-item["n"], item["model"]))
+    return rows
+
+
+# The local file. Used when no postgres URL is set, so the API can run with no database process.
 def _record_sqlite(payload: dict) -> None:
     path = sqlite_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -138,6 +170,7 @@ def _recent_sqlite(limit: int) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=list(FIELDS))
 
 
+# The postgres server named by DATABASE_URL. This connects. It does not provision the server.
 def _record_postgres(payload: dict) -> None:
     import psycopg
 

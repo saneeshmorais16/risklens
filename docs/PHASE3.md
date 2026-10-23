@@ -15,7 +15,7 @@ Phase 1 scores a held-out synthetic book and refuses account actions. Phase 2 re
 
 `python -m pytest -q` on Python 3.12: 18 passed. That includes `tests/test_phase1.py`, `tests/test_phase2.py`, and `tests/test_phase3.py`. The Phase 3 tests cover a stable PSI, a shifted hour, the checked-in training-window profile (7,646 rows, the same count as `models/metrics.json`), the SQLite score log, an MLflow champion alias moved back to an older version, a Feast online read of the later row, and the monitor and registry endpoints. Both endpoints keep `action` as `none`, and the registry endpoint keeps `deployed` as false.
 
-PostgreSQL and Docker were not executed. Neither is installed on this machine.
+PostgreSQL and Docker were not executed in this phase. Both were run later. The live PostgreSQL tests passed, and Compose served the API. See [COVERAGE.md](COVERAGE.md).
 
 ## What was not deployed
 

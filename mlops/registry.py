@@ -11,6 +11,7 @@ MODEL_NAME = "risklens-baseline"
 CHAMPION = "champion"
 
 
+# Save the baseline in a local tracking directory and point champion at that version. deployed stays false.
 def register_baseline(tracking_uri: str, model, metrics: dict) -> dict:
     import mlflow
     from mlflow.exceptions import MlflowException
@@ -43,12 +44,14 @@ def register_baseline(tracking_uri: str, model, metrics: dict) -> dict:
     }
 
 
+# Point the alias at a version. That is the rollback this module can do. It does not deploy the version.
 def set_alias(tracking_uri: str, version: str, alias: str = CHAMPION) -> None:
     from mlflow.tracking import MlflowClient
 
     MlflowClient(tracking_uri=tracking_uri).set_registered_model_alias(MODEL_NAME, alias, str(version))
 
 
+# Which version the alias names. Missing alias means there is nothing to read. It does not mean a deployment.
 def alias_version(tracking_uri: str, alias: str = CHAMPION) -> str | None:
     from mlflow.exceptions import MlflowException
     from mlflow.tracking import MlflowClient

@@ -16,6 +16,7 @@ from features.build import FEATURE_COLUMNS, add_features
 VIEW_NAME = "transaction_features"
 
 
+# The feature row Feast is allowed to store. The label and the scenario name stay off this table.
 def prepare_frame(frame: pd.DataFrame) -> pd.DataFrame:
     table = add_features(frame).copy()
     origin = pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta(days=40)
@@ -24,6 +25,7 @@ def prepare_frame(frame: pd.DataFrame) -> pd.DataFrame:
     return table.loc[:, columns]
 
 
+# The six scoring columns. This is the view the online read returns.
 def feature_view(parquet_path: Path):
     from feast import Entity, FeatureView, Field, FileSource
     from feast.types import Float64, Int64
@@ -55,6 +57,7 @@ def feature_view(parquet_path: Path):
     return customer, view
 
 
+# Local provider. Parquet on disk, SQLite for the latest row. This does not start a feature server.
 def apply_store(repo: Path, frame: pd.DataFrame):
     from feast import FeatureStore
 
@@ -89,6 +92,7 @@ def apply_store(repo: Path, frame: pd.DataFrame):
     return store
 
 
+# The latest stored features for one customer. This is a local read.
 def online_features(store, customer_id: str) -> dict:
     names = [f"{VIEW_NAME}:{name}" for name in FEATURE_COLUMNS]
     result = store.get_online_features(
